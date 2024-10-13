@@ -1,0 +1,78 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Caches
+*.egg-info/
+.eggs/
+.cache/
+.coverage
+.tox/
+*.cover
+*.py,cover
+.cache
+.pytest_cache/
+.installed.cfg
+*.egg
+htmlcov/
+
+# Poetry
+poetry.lock
+
+# Virtual environment
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Docker
+docker-compose.override.yml
+*.log
+*.env
+docker-compose.yml
+
+# Alembic migrations
+alembic/versions/*.pyc
+alembic/versions/__pycache__/
+alembic/versions/*.py[co]
+
+# PostgreSQL data
+pgdata/
+postgres_data/
+
+# FastAPI/uvicorn logs
+*.log
+
+# macOS system files
+.DS_Store
+
+# Pytest cache
+.pytest_cache/
+
+# IDE / Editor directories and files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+*.swp
+*.bak
+*.tmp
+
+# Pycharm specific
+.idea/
+*.iml
+
+# Logs
+*.log
+
+# MyPy
+.mypy_cache/
+
+# Pyre type checker
+.pyre/
+.env
+alembic.ini
+alembic/env.py
