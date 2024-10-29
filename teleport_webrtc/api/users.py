@@ -9,7 +9,9 @@ from teleport_webrtc.core.database import get_db
 from fastapi_jwt import JwtAccessBearer, JwtAuthorizationCredentials
 from datetime import timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-
+import random
+from teleport_webrtc.mail_service import send_mail_verification  # Импортируем функцию отправки письма
+from passlib.hash import bcrypt
 
 
 import os
@@ -27,29 +29,33 @@ router = APIRouter()
 # Инициализация JWT
 jwt_bearer = JwtAccessBearer(secret_key=SECRET_KEY)
 
-class UserAPI:
-    def __init__(self, db: Session):
-        self.crud = UserCRUD(db)
-
-    def create_user(self, user: UserCreate):
-        return self.crud.create_user(user)
-
-    def get_user(self, user_id: int):
-        user = self.crud.get_user(user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        return user
-
-    def get_users(self):
-        return self.crud.get_users()
-
-user_api = UserAPI
 
 
 
-import random
-from teleport_webrtc.mail_service import send_mail_verification  # Импортируем функцию отправки письма
-from passlib.hash import bcrypt
+
+
+
+# class UserAPI:
+#     def __init__(self, db: Session):
+#         self.crud = UserCRUD(db)
+
+#     def create_user(self, user: UserCreate):
+#         return self.crud.create_user(user)
+
+#     def get_user(self, user_id: int):
+#         user = self.crud.get_user(user_id)
+#         if not user:
+#             raise HTTPException(status_code=404, detail="User not found")
+#         return user
+
+#     def get_users(self):
+#         return self.crud.get_users()
+
+# user_api = UserAPI
+
+
+
+
 
 
 
@@ -98,15 +104,6 @@ async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
 
 
 
-
-
-
-
-
-
-
-
-
 @router.post("/login", response_model=Token)
 async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
     user_crud = UserCRUD(db)
@@ -133,6 +130,9 @@ async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
 
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
+
+
+
 @router.post("/confirm-email")
 async def confirm_email(data: ActivationCodeConfirm, db: AsyncSession = Depends(get_db)):
     user_crud = UserCRUD(db)
@@ -147,6 +147,9 @@ async def confirm_email(data: ActivationCodeConfirm, db: AsyncSession = Depends(
     await db.commit()  # await для асинхронного коммита
     
     return {"message": "Email confirmed successfully!"}
+
+
+
 
 
 @router.post("/refresh", response_model=Token)
@@ -199,6 +202,10 @@ async def refresh_token(refresh: TokenRefresh, db: AsyncSession = Depends(get_db
         # Логирование ошибки недействительного токена
         print(f"Invalid token error: {str(e)}")
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+
+
 
 @router.get("/protected")
 async def protected_route(credentials: JwtAuthorizationCredentials = Depends(jwt_bearer)):

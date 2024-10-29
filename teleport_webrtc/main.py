@@ -37,19 +37,7 @@ class User(BaseModel):
     username: str
     password: str
 
-@app.post("/login", tags=["Authentication"])
-def login(user: User):
-    # Логика проверки пользователя (например, из базы данных)
-    if user.username == "test" and user.password == "test":  # Пример: проверьте пользователя
-        access_token = jwt_bearer.create_access_token(
-            subject=user.username,
-            expires_delta=timedelta(minutes=30)
-        )
-        return {"access_token": access_token}
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid username or password"
-    )
+
 
 @app.get("/protected", tags=["Protected"])
 def protected(credentials: JwtAuthorizationCredentials = Depends(jwt_bearer)):
