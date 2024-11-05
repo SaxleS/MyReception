@@ -1,16 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header, status
 import jwt
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from teleport_webrtc.crud.users import UserCRUD
-from teleport_webrtc.schemas.users import ActivationCodeConfirm, UserCreate, UserLogin, Token, TokenRefresh
-from teleport_webrtc.core.database import get_db
+from app.crud.users import UserCRUD
+from app.schemas.users import ActivationCodeConfirm, UserCreate, UserLogin, Token, TokenRefresh
+from app.core.database import get_db
 from fastapi_jwt import JwtAccessBearer, JwtAuthorizationCredentials
 from datetime import timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 import random
-from teleport_webrtc.mail_service import send_mail_verification  # Импортируем функцию отправки письма
+from app.mail_service import send_mail_verification  # Импортируем функцию отправки письма
 from passlib.hash import bcrypt
 
 
@@ -23,14 +23,21 @@ load_dotenv()
 
 # Читаем секретный ключ из переменной окружения
 SECRET_KEY = os.getenv("SECRET_KEY")
-
+# Читаем секретные ключи из переменных окружения
+API_KEY = os.getenv("API_KEY")
 router = APIRouter()
 
 # Инициализация JWT
 jwt_bearer = JwtAccessBearer(secret_key=SECRET_KEY)
 
 
-
+# Зависимость для проверки API-ключа
+async def verify_api_key(x_api_key: str = Header(...)):
+    if x_api_key != API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing API key"
+        )
 
 
 
@@ -62,7 +69,7 @@ jwt_bearer = JwtAccessBearer(secret_key=SECRET_KEY)
 
 
 
-@router.post("/register", response_model=dict)
+@router.post("/register", response_model=dict, dependencies=[Depends(verify_api_key)])
 async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
     user_crud = UserCRUD(db)
     
@@ -104,7 +111,7 @@ async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
 
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=Token, dependencies=[Depends(verify_api_key)])
 async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
     user_crud = UserCRUD(db)
     
@@ -133,7 +140,7 @@ async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
 
 
 
-@router.post("/confirm-email")
+@router.post("/confirm-email", dependencies=[Depends(verify_api_key)])
 async def confirm_email(data: ActivationCodeConfirm, db: AsyncSession = Depends(get_db)):
     user_crud = UserCRUD(db)
     user = await user_crud.get_user_by_username(data.username)  # await для асинхронного вызова
@@ -152,7 +159,7 @@ async def confirm_email(data: ActivationCodeConfirm, db: AsyncSession = Depends(
 
 
 
-@router.post("/refresh", response_model=Token)
+@router.post("/refresh", response_model=Token, dependencies=[Depends(verify_api_key)])
 async def refresh_token(refresh: TokenRefresh, db: AsyncSession = Depends(get_db)):
     ALGORITHM = os.getenv("ALGORITHM", "HS256")
     try:
@@ -207,7 +214,7 @@ async def refresh_token(refresh: TokenRefresh, db: AsyncSession = Depends(get_db
 
 
 
-@router.get("/protected")
+@router.get("/protected", dependencies=[Depends(verify_api_key)])
 async def protected_route(credentials: JwtAuthorizationCredentials = Depends(jwt_bearer)):
     # Извлекаем данные из токена
     user_info = credentials.subject

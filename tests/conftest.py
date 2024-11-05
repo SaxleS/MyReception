@@ -1,8 +1,8 @@
 # app/tests/conftest.py
 import pytest
 from fastapi.testclient import TestClient
-from teleport_webrtc.main import app
-from teleport_webrtc.core.database import Base, get_db
+from app.main import app
+from app.core.database import Base, get_db
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool

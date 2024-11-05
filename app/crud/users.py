@@ -1,10 +1,10 @@
 from sqlalchemy.orm import Session
-from teleport_webrtc.models.users import User, Token 
-from teleport_webrtc.schemas.users import UserCreate
+from app.models.users import User, Token 
+from app.schemas.users import UserCreate
 from passlib.hash import bcrypt
 
 from sqlalchemy.future import select
-from teleport_webrtc.schemas.users import UserCreate
+from app.schemas.users import UserCreate
 from passlib.hash import bcrypt
 from sqlalchemy.ext.asyncio import AsyncSession
 

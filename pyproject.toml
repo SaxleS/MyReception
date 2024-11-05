@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "teleport-webrtc"
+name = "MyReception"
 version = "0.1.0"
 description = ""
 authors = ["Aliaksei Saukin <88047550+SaxleS@users.noreply.github.com>"]

@@ -15,7 +15,7 @@ conf = ConnectionConfig(
 
 async def send_mail_verification(email: str, activation_code: str):
     message = MessageSchema(
-        subject="Ваш код активации",
+        subject="MyReception",
         recipients=[email],
         body=f"Ваш код активации: {activation_code}",
         subtype="plain"
