@@ -1,3 +1,4 @@
+from datetime import datetime
 from sqlalchemy.orm import Session
 from app.models.users import User, Token 
 from app.schemas.users import UserCreate
@@ -21,21 +22,33 @@ class UserCRUD:
     async def create_user(self, user: UserCreate, activation_code: str, is_active: bool = False):
         hashed_password = bcrypt.hash(user.password)
         db_user = User(
-            username=user.username, 
-            email=user.email, 
+            username=user.username,
+            email=user.email,
+            phone_number=user.phone_number,  # Сохраняем номер телефона
             hashed_password=hashed_password,
-            activation_code=activation_code,  # Устанавливаем код активации
-            is_active=is_active  # Аккаунт активен или нет
+            activation_code=activation_code,
+            is_active=is_active
         )
         self.db.add(db_user)
-        await self.db.commit()  # Используем await для асинхронных методов
+        await self.db.commit()
         await self.db.refresh(db_user)
         return db_user
 
-    async def authenticate_user(self, username: str, password: str):
-        user = await self.get_user_by_username(username)  # Не забываем await
+    async def authenticate_user(self, username: str, password: str, device_model: str, os_version: str, ip_address: str, device_time: datetime, latitude: float, longitude: float):
+        user = await self.get_user_by_username(username)
         if not user or not bcrypt.verify(password, user.hashed_password):
             return False
+        
+        # Обновляем информацию о устройстве и геоданных
+        user.device_model = device_model
+        user.os_version = os_version
+        user.ip_address = ip_address
+        user.device_time = device_time
+        user.latitude = latitude
+        user.longitude = longitude
+        
+        await self.db.commit()
+        await self.db.refresh(user)
         return user
     
 
@@ -64,3 +77,8 @@ class UserCRUD:
             token_record = new_token
 
         return token_record
+    
+    async def get_user_by_id(self, user_id: int):
+        stmt = select(User).where(User.id == user_id)
+        result = await self.db.execute(stmt)
+        return result.scalars().first()

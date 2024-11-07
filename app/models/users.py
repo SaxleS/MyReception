@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Float, Integer, String, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
@@ -7,12 +7,9 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True)  # Добавляем поле username
+    username = Column(String, unique=True, index=True)
     first_name = Column(String, index=True)
     last_name = Column(String, index=True)
-    country = Column(String)
-    city = Column(String)
-    age = Column(Integer)
     phone_number = Column(String, unique=True, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
@@ -24,15 +21,12 @@ class User(Base):
     ip_address = Column(String)
     device_time = Column(DateTime)
     activation_code = Column(String, nullable=True)
-
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
     # Связь с токенами
     tokens = relationship("Token", back_populates="user")
 
-    # Задачи, созданные пользователем
-    created_tasks = relationship("Task", foreign_keys="[Task.created_by]", back_populates="creator")
 
-    # Задачи, в которых пользователь является исполнителем
-    tasks = relationship("Task", foreign_keys="[Task.executor_id]", back_populates="executor")
 
 class Token(Base):
     __tablename__ = "tokens"

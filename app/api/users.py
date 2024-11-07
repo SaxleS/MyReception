@@ -1,22 +1,28 @@
+from typing import Dict
 from fastapi import APIRouter, Depends, HTTPException, Header, status
 import jwt
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.crud.users import UserCRUD
-from app.schemas.users import ActivationCodeConfirm, UserCreate, UserLogin, Token, TokenRefresh
-from app.core.database import get_db
+
 from fastapi_jwt import JwtAccessBearer, JwtAuthorizationCredentials
 from datetime import timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 import random
-from app.mail_service import send_mail_verification  # Импортируем функцию отправки письма
 from passlib.hash import bcrypt
+
+
+
+from app.crud.users import UserCRUD
+from app.models.users import User
+from app.schemas.users import ActivationCodeConfirm, UserCreate, UserLogin, Token, TokenRefresh, UserProfile
+from app.core.database import get_db
+from app.mail_service import send_mail_verification  # Импортируем функцию отправки письма
+
 
 
 import os
 from dotenv import load_dotenv
-from fastapi_jwt import JwtAccessBearer
 
 # Загружаем переменные из файла .env
 load_dotenv()
@@ -38,28 +44,6 @@ async def verify_api_key(x_api_key: str = Header(...)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing API key"
         )
-
-
-
-
-# class UserAPI:
-#     def __init__(self, db: Session):
-#         self.crud = UserCRUD(db)
-
-#     def create_user(self, user: UserCreate):
-#         return self.crud.create_user(user)
-
-#     def get_user(self, user_id: int):
-#         user = self.crud.get_user(user_id)
-#         if not user:
-#             raise HTTPException(status_code=404, detail="User not found")
-#         return user
-
-#     def get_users(self):
-#         return self.crud.get_users()
-
-# user_api = UserAPI
-
 
 
 
@@ -111,6 +95,7 @@ async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
 
 
 
+
 @router.post("/login", response_model=Token, dependencies=[Depends(verify_api_key)])
 async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
     user_crud = UserCRUD(db)
@@ -122,6 +107,19 @@ async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
     if not authenticated_user or not bcrypt.verify(user.password, authenticated_user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
+    # Обновляем информацию об устройстве и геолокации
+    authenticated_user.device_model = user.device_model
+    authenticated_user.os_version = user.os_version
+    authenticated_user.ip_address = user.ip_address
+    # Преобразуем device_time в формат без временной зоны, если необходимо
+    authenticated_user.device_time = user.device_time.replace(tzinfo=None) if user.device_time.tzinfo else user.device_time
+    authenticated_user.latitude = user.latitude
+    authenticated_user.longitude = user.longitude
+    
+    # Сохраняем обновленную информацию о пользователе
+    await db.commit()
+    await db.refresh(authenticated_user)
+
     # Создание токенов
     access_token = jwt_bearer.create_access_token(
         subject={"id": authenticated_user.id, "username": authenticated_user.username},
@@ -216,6 +214,43 @@ async def refresh_token(refresh: TokenRefresh, db: AsyncSession = Depends(get_db
 
 @router.get("/protected", dependencies=[Depends(verify_api_key)])
 async def protected_route(credentials: JwtAuthorizationCredentials = Depends(jwt_bearer)):
-    # Извлекаем данные из токена
+    if credentials is None:
+        print("No credentials provided")
+        raise HTTPException(status_code=401, detail="No credentials provided")
+
     user_info = credentials.subject
+    print(f"User info extracted from token: {user_info}")
     return {"message": f"Hello {user_info['username']}!"}
+
+
+
+
+
+
+
+
+
+@router.get("/profile", response_model=UserProfile, dependencies=[Depends(verify_api_key)])
+async def get_profile(credentials: JwtAuthorizationCredentials = Depends(jwt_bearer), db: AsyncSession = Depends(get_db)):
+    # Извлекаем данные из токена
+    user_info = credentials.subject  # Получаем данные из subject
+    print(f"User info extracted from token in /profile: {user_info}")
+
+    user_id = user_info.get("id")  # Предполагается, что subject — это словарь с user_id и username
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Token does not contain user ID")
+
+    # Ищем пользователя в базе данных
+    user_crud = UserCRUD(db)
+    user = await user_crud.get_user_by_id(user_id)
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return UserProfile(
+        username=user.username,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        email=user.email,
+        phone_number=user.phone_number
+    )
