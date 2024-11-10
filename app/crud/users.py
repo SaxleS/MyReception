@@ -9,7 +9,6 @@ from app.schemas.users import UserCreate
 from passlib.hash import bcrypt
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
 class UserCRUD:
     def __init__(self, db: AsyncSession):  # Используем AsyncSession
         self.db = db
