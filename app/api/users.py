@@ -166,11 +166,7 @@ async def refresh_token(refresh: TokenRefresh, db: AsyncSession = Depends(get_db
         
         # Декодируем токен вручную с использованием библиотеки jwt
         payload = jwt.decode(refresh.refresh_token, SECRET_KEY, algorithms=[ALGORITHM])        
-        # Логирование ключа для кодирования/декодирования
-        print("SECRET_KEY used for decoding:", SECRET_KEY)
-        
-        # Логирование декодированного payload
-        print("Decoded payload:", payload)
+ 
         
         # Извлекаем информацию о пользователе из поля "subject", а не "sub"
         current_user = payload.get("subject")
@@ -186,8 +182,6 @@ async def refresh_token(refresh: TokenRefresh, db: AsyncSession = Depends(get_db
             expires_delta=timedelta(minutes=30)
         )
         
-        # Логирование создания нового access_token
-        print("Created new access token:", access_token)
         
         # Сохраняем токены в базе данных
         user_crud = UserCRUD(db)
