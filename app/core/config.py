@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+from fastapi_mail import ConnectionConfig
 
 load_dotenv()
 
@@ -17,7 +18,8 @@ TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_VERIFY_SERVICE_SID = os.getenv("TWILIO_VERIFY_SERVICE_SID")
 
 
-
+BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+BACKEND_URL = os.getenv("CELERY_BACKEND_URL", "redis://localhost:6379/0")
 
 
 # Конфигурация почтового сервера
@@ -30,8 +32,7 @@ MAIL_STARTTLS = True  # Используем TLS
 MAIL_SSL_TLS = False  # Не используем SSL
 USE_CREDENTIALS = True
 
-# Конфигурация для FastMail
-from fastapi_mail import ConnectionConfig
+
 
 conf = ConnectionConfig(
     MAIL_USERNAME=MAIL_USERNAME,
