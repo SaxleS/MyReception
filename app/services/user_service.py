@@ -1,14 +1,21 @@
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from typing import Optional, Any
-from app.schemas.users import UserCreate, UserLogin, ActivationCodeConfirm, TokenRefresh, UserProfile
-from app.crud.users import UserCRUD
+
+from fastapi_jwt import JwtAuthorizationCredentials
+from app.schemas.users import UserCreate, UserLogin, ActivationCodeConfirm, TokenRefresh, UserProfile, PasswordChangeRequest
+
+
+
+
+from app.crud.users.user_crud import UserCRUD
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 from jose import jwt
 from passlib.hash import bcrypt
 import uuid
 import os
+
 
 from app.core.security import SECRET_KEY, ALGORITHM
 
@@ -101,3 +108,29 @@ class UserService(AbstractUserService):
             last_name=user.last_name,
             is_active=user.is_active
         )
+    
+
+    async def change_password(self, user_id: int, data: PasswordChangeRequest) -> dict:
+        user = await self.user_crud.get_user_by_id(user_id)
+        if not user or not bcrypt.verify(data.old_password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Incorrect old password"
+            )
+
+        hashed_new_password = bcrypt.hash(data.new_password)
+        user.hashed_password = hashed_new_password
+        await self.user_crud.update_user(user)
+
+        return {"message": "Password updated successfully"}
+    
+    async def _process_password_change(self, user_id: int, data: PasswordChangeRequest) -> None:
+        user = await self.user_crud.get_user_by_id(user_id)
+        if not user or not bcrypt.verify(data.old_password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Incorrect old password"
+            )
+        hashed_new_password = bcrypt.hash(data.new_password)
+        user.hashed_password = hashed_new_password
+        await self.user_crud.update_user(user)

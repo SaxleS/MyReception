@@ -75,3 +75,10 @@ class UserProfileResponse(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class PasswordChangeRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+

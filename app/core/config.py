@@ -1,8 +1,33 @@
 import os
 from dotenv import load_dotenv
 from fastapi_mail import ConnectionConfig
+from fastapi import FastAPI
 
 load_dotenv()
+
+
+
+
+
+
+
+app = FastAPI(
+    title="MyReception",
+    description="API",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url=None
+)
+
+
+
+
+
+
+
+
+
+
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
