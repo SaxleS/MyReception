@@ -62,3 +62,13 @@ class UserCRUD(AbstractUserCRUD):
         await self.db.commit()
         await self.db.refresh(token_record)
         return token_record
+    
+
+
+    async def get_user_by_email(self, email: str) -> Optional[User]:
+        """
+        Получение пользователя по email.
+        """
+        stmt = select(User).where(User.email == email)
+        result = await self.db.execute(stmt)
+        return result.scalars().first()

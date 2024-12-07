@@ -47,6 +47,8 @@ BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
 BACKEND_URL = os.getenv("CELERY_BACKEND_URL", "redis://localhost:6379/0")
 
 
+
+
 # Конфигурация почтового сервера
 MAIL_USERNAME = os.getenv("MAIL_USERNAME")
 MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")

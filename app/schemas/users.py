@@ -67,7 +67,6 @@ class UserProfile(BaseSchema):
 
 
 class UserProfileResponse(BaseModel):
-    id: int
     username: str
     email: EmailStr
     phone_number: Optional[str] = Field(None, pattern=r'^\+?\d{10,15}$')
@@ -81,4 +80,7 @@ class PasswordChangeRequest(BaseModel):
     old_password: str
     new_password: str
 
+
+class ResendVerificationCodeRequest(BaseModel):
+    email: EmailStr
 

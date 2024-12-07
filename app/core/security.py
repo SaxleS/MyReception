@@ -6,6 +6,9 @@ from fastapi import HTTPException, status, Depends
 from fastapi_jwt import JwtAuthorizationCredentials
 
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.crud.users.user_crud import UserCRUD
 
 
 
@@ -55,3 +58,31 @@ class JWTAuth(AbstractJWTAuth):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload"
         )
+
+
+
+
+
+class AbstractUserStatusChecker(ABC):
+    @abstractmethod
+    async def check_user_active(self, user_id: int, db: AsyncSession) -> None:
+        """
+        Проверяет, активен ли пользователь.
+        """
+        raise NotImplementedError
+    
+
+
+
+class UserStatusChecker(AbstractUserStatusChecker):
+    async def check_user_active(self, user_id: int, db: AsyncSession) -> None:
+        """
+        Проверяет, активен ли пользователь.
+        """
+        user_crud = UserCRUD(db)
+        user = await user_crud.get_user_by_id(user_id)
+        if not user or not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User account is not active"
+            )

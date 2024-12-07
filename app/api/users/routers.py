@@ -8,11 +8,18 @@ from app.api.users.dependencies import (
     get_email_confirm_api,
     get_token_api,
     get_profile_api,
+    get_user_service,
 )
 from app.schemas.users import PasswordChangeRequest, UserCreate, UserLogin, ActivationCodeConfirm, TokenRefresh, UserProfileResponse
 from app.core.security import JWTAuth, jwt_bearer, verify_api_key
 from fastapi_jwt import JwtAuthorizationCredentials
 from app.core.security import JWTAuth
+from sqlalchemy.ext.asyncio import AsyncSession
+
+
+
+from app.services.user_service import UserService
+from app.core.database import get_db
 
 def get_user_router() -> APIRouter:
     router = APIRouter()
@@ -72,9 +79,10 @@ def get_user_router() -> APIRouter:
         credentials: JwtAuthorizationCredentials = Depends(jwt_bearer),
         service=Depends(get_profile_api),
         jwt_auth: JWTAuth = Depends(get_jwt_auth_service),
+        db: AsyncSession = Depends(get_db),  # Передаём `db` через Depends
     ):
         user_id = jwt_auth.extract_user_id(credentials)
-        return await service.get_profile(user_id)
+        return await service.get_profile(credentials, db)
     
 
 
@@ -90,10 +98,29 @@ def get_user_router() -> APIRouter:
         data: PasswordChangeRequest,
         credentials: JwtAuthorizationCredentials = Depends(jwt_bearer),
         service: PasswordChangeAPI = Depends(get_password_change_api),
+        db: AsyncSession = Depends(get_db),  # Добавлено
         jwt_auth: JWTAuth = Depends(get_jwt_auth_service),
     ):
         user_id = jwt_auth.extract_user_id(credentials)
-        return await service.change_password(user_id=user_id, data=data)
+        return await service.change_password(user_id=user_id, data=data, db=db)  # Передача db
+
+
+
+
+
+
+    @router.post("/send-verification-code")
+    async def send_verification_code(
+        email: str,
+        user_service: UserService = Depends(get_user_service)
+    ):
+        """
+        Эндпоинт для отправки кода верификации на email.
+        """
+        return await user_service.send_confirm_email_code(email)
+
+
+
 
     return router
 

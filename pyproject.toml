@@ -32,6 +32,7 @@ fastapi-jwt = "^0.3.0"
 pytest = "^8.3.3"
 websockets = "^13.1"
 celery = "^5.4.0"
+redis = "^5.2.1"
 
 
 [tool.poetry.group.dev.dependencies]

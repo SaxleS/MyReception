@@ -1,59 +1,52 @@
-from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
-from typing import Optional, Any
-
-from fastapi_jwt import JwtAuthorizationCredentials
-from app.schemas.users import UserCreate, UserLogin, ActivationCodeConfirm, TokenRefresh, UserProfile, PasswordChangeRequest
-
-
-
-
+from datetime import timedelta
+from app.services.token_service import TokenService
+from app.services.profile_service import ProfileService
 from app.crud.users.user_crud import UserCRUD
+from app.crud.users.abstract_cruds import AbstractUserCRUD, AbstractTokenCRUD
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
-from jose import jwt
-from passlib.hash import bcrypt
+from app.schemas.users import UserCreate, UserLogin, ActivationCodeConfirm
 import uuid
-import os
+from passlib.hash import bcrypt
 
-
-from app.core.security import SECRET_KEY, ALGORITHM
-
+from abc import ABC, abstractmethod
+from app.schemas.users import UserCreate, UserLogin, ActivationCodeConfirm
+from app.notifications.notification_sender_service import EmailNotificationSender
+from app.celery.celery_tasks import send_verification_email_task
 
 
 class AbstractUserService(ABC):
-    @abstractmethod
-    async def register(self, user: UserCreate) -> Any:
-        pass
 
-    @abstractmethod
-    async def login(self, user: UserLogin) -> Any:
-        pass
-
-    @abstractmethod
-    async def confirm_email(self, data: ActivationCodeConfirm) -> Any:
-        pass
-
-    @abstractmethod
-    async def refresh_token(self, refresh: TokenRefresh) -> Any:
-        pass
-
-    @abstractmethod
-    async def get_profile(self, user_id: int) -> UserProfile:
-        pass
-
-
-class UserService(AbstractUserService):
     def __init__(self, db: AsyncSession):
         self.user_crud = UserCRUD(db)
+        self.token_service = TokenService()
+        self.profile_service = ProfileService(db)
+        self.email_sender = EmailNotificationSender()
 
-    def _generate_token(self, user_id: int, expires_delta: Optional[timedelta] = None) -> str:
-        expire = datetime.utcnow() + (expires_delta or timedelta(minutes=30))
-        payload = {
-            "subject": {"id": user_id, "roles": ["user"]},
-            "exp": expire
-        }
-        return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    @abstractmethod
+    async def register(self, user: UserCreate) -> dict:
+        pass
+
+    @abstractmethod
+    async def login(self, user: UserLogin) -> dict:
+        pass
+
+    @abstractmethod
+    async def confirm_email(self, data: ActivationCodeConfirm) -> dict:
+        pass
+
+    @abstractmethod
+    async def send_confirm_email_code(self, email: str) -> dict:
+        pass
+
+
+
+
+
+
+class UserService(AbstractUserService):  # Наследуемся от AbstractUserService
+
+
 
     async def register(self, user: UserCreate) -> dict:
         existing_user = await self.user_crud.get_user_by_username(user.username)
@@ -62,17 +55,17 @@ class UserService(AbstractUserService):
 
         activation_code = str(uuid.uuid4())
         new_user = await self.user_crud.create_user(user, activation_code)
-        return {"message": "Registration successful", "activation_code": activation_code}
+        return {"message": "Registration successful"}
 
     async def login(self, user: UserLogin) -> dict:
         db_user = await self.user_crud.get_user_by_username(user.username)
         if not db_user or not bcrypt.verify(user.password, db_user.hashed_password):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-        access_token = self._generate_token(db_user.id, timedelta(minutes=15))
-        refresh_token = self._generate_token(db_user.id, timedelta(days=7))
+        access_token = await self.token_service._generate_token(db_user.id, timedelta(minutes=15))
+        refresh_token = await self.token_service._generate_token(db_user.id, timedelta(days=7))
         await self.user_crud.save_tokens_to_db(db_user.id, access_token, refresh_token)
-
+        
         return {"access_token": access_token, "refresh_token": refresh_token}
 
     async def confirm_email(self, data: ActivationCodeConfirm) -> dict:
@@ -83,54 +76,32 @@ class UserService(AbstractUserService):
         user.is_active = True
         await self.user_crud.db.commit()
         return {"message": "Email confirmed successfully"}
+    
 
-    async def refresh_token(self, refresh: TokenRefresh) -> dict:
-        # Здесь вы проверяете refresh_token и выдаете новый access_token
-        try:
-            payload = jwt.decode(refresh.refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
-            user_id = int(payload.get("sub"))
-        except jwt.JWTError:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
-        new_access_token = self._generate_token(user_id, timedelta(minutes=15))
-        return {"access_token": new_access_token}
 
-    async def get_profile(self, user_id: int) -> UserProfile:
-        user = await self.user_crud.get_user_by_id(user_id)
+    async def send_confirm_email_code(self, email: str) -> dict:
+        user = await self.user_crud.get_user_by_email(email)
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-        return UserProfile(
-            id=user.id,
-            username=user.username,
-            email=user.email,
-            phone_number=user.phone_number,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            is_active=user.is_active
-        )
-    
 
-    async def change_password(self, user_id: int, data: PasswordChangeRequest) -> dict:
-        user = await self.user_crud.get_user_by_id(user_id)
-        if not user or not bcrypt.verify(data.old_password, user.hashed_password):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Incorrect old password"
+        if user.is_active:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User is already verified")
+
+        # Генерация нового кода верификации
+        activation_code = str(uuid.uuid4())[:4]
+        user.activation_code = activation_code
+        await self.user_crud.db.commit()
+
+        # Отправка задачи через Celery
+        try:
+            send_verification_email_task.delay(
+                recipients=[email],
+                subject="MyReception - Activation Code",
+                body=f"Ваш код активации: {activation_code}",
+                subtype="plain",
             )
+        except Exception as e:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error sending email: {str(e)}")
 
-        hashed_new_password = bcrypt.hash(data.new_password)
-        user.hashed_password = hashed_new_password
-        await self.user_crud.update_user(user)
-
-        return {"message": "Password updated successfully"}
-    
-    async def _process_password_change(self, user_id: int, data: PasswordChangeRequest) -> None:
-        user = await self.user_crud.get_user_by_id(user_id)
-        if not user or not bcrypt.verify(data.old_password, user.hashed_password):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Incorrect old password"
-            )
-        hashed_new_password = bcrypt.hash(data.new_password)
-        user.hashed_password = hashed_new_password
-        await self.user_crud.update_user(user)
+        return {"message": "Verification code sent"}
