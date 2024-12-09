@@ -58,6 +58,12 @@ class JWTAuth(AbstractJWTAuth):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload"
         )
+    
+    async def get_current_user_id(self, credentials: JwtAuthorizationCredentials = Depends(jwt_bearer)) -> int:
+        """
+        Получает текущий user_id из токена через зависимости FastAPI.
+        """
+        return self.extract_user_id(credentials)
 
 
 

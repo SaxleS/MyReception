@@ -1,0 +1,127 @@
+version: "3.8"
+
+services:
+  api:
+    build: .
+    command: poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_FROM=${MAIL_FROM}
+      - MAIL_PORT=${MAIL_PORT}
+      - MAIL_SERVER=${MAIL_SERVER}
+      - MAIL_TLS=${MAIL_TLS}
+      - MAIL_SSL=${MAIL_SSL}
+      - MONGO_URI=${MONGO_URI}
+      - DATABASE_NAME=${DATABASE_NAME}
+      - COLLECTION_NAME=${COLLECTION_NAME}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_BACKEND_URL=${CELERY_BACKEND_URL}
+    depends_on:
+      - redis
+      - mongodb_logs
+      - postgres
+      - celery_worker
+    volumes:
+      - .:/app
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 12345
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  celery_worker:
+    build: .
+    command: poetry run celery -A app.celery.celery_app worker --loglevel=info
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - MONGO_URI=${MONGO_URI}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_BACKEND_URL=${CELERY_BACKEND_URL}
+    depends_on:
+      - redis
+      - postgres
+      - mongodb_logs
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+  mongodb_logs:
+    image: mongo:latest
+    container_name: mongodb
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+
+  
+  chat_mongo1:
+    image: mongo:latest
+    container_name: chat_mongo1
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      REPLICA_SET_NAME: "rs0"
+    ports:
+      - "27018:27017"
+    volumes:
+      - chat_mongo1_data:/data/db
+
+  chat_mongo2:
+    image: mongo:latest
+    container_name: chat_mongo2
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      REPLICA_SET_NAME: "rs0"
+    ports:
+      - "27019:27017"
+    volumes:
+      - chat_mongo2_data:/data/db
+
+  chat_mongo3:
+    image: mongo:latest
+    container_name: chat_mongo3
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      REPLICA_SET_NAME: "rs0"
+    ports:
+      - "27020:27017"
+    volumes:
+      - chat_mongo3_data:/data/db
+
+volumes:
+  postgres_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  chat_mongo1_data:
+    driver: local
+  chat_mongo2_data:
+    driver: local
+  chat_mongo3_data:
+    driver: local

@@ -32,7 +32,7 @@ venv.bak/
 docker-compose.override.yml
 *.log
 *.env
-docker-compose.yml
+
 
 # Alembic migrations
 alembic/versions/*.pyc
@@ -76,3 +76,4 @@ postgres_data/
 .env
 alembic.ini
 alembic/env.py
+help.bash

@@ -8,7 +8,8 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     libssl-dev \
     libffi-dev \
-    libgmp-dev
+    libgmp-dev \
+    iputils-ping
 
 # Устанавливаем рабочую директорию
 WORKDIR /app

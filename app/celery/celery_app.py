@@ -1,14 +1,15 @@
 from celery import Celery
+from app.core.config import BROKER_URL, BACKEND_URL
 
-# Настройки Celery
-BROKER_URL = "redis://localhost:6379/0"  # Укажите адрес брокера
-BACKEND_URL = "redis://localhost:6379/0"
 
 celery_app = Celery(
     "test_app",
     broker=BROKER_URL,
     backend=BACKEND_URL,
 )
+
+
+
 
 # Настройка маршрутов задач
 celery_app.conf.task_routes = {
